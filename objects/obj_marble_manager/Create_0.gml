@@ -1,3 +1,5 @@
+randomize();
+
 enum Marble_Color {
     NoOne,
     Red,
@@ -76,6 +78,8 @@ create_marble = function(_color, _x, _y) constructor {
     state = Marble_States.Idle;
     falling_leader = false;
     falling_y = -1;
+    timer_explosion_max = 15;
+    timer_explosion = timer_explosion_max;
     
     update = function(){
         switch(state){
@@ -120,7 +124,7 @@ create_marble = function(_color, _x, _y) constructor {
                                     // caso nao consiga explodir, passa o turno
                                     if (_next_marble.color == color){
                                         obj_marble_manager.update_row(x_index);
-                                        obj_marble_manager.explode_settings.timer = 10;
+                                        obj_marble_manager.explode_settings.timer = 2;
                                         obj_marble_manager.explode_settings.y_max = _next_marble.y_index;
                                         obj_marble_manager.explode_settings.x = x_index;
                                         obj_marble_manager.explode_settings.color = _next_marble.color;
@@ -139,6 +143,14 @@ create_marble = function(_color, _x, _y) constructor {
                         }
                         
                     }
+                }
+            break;
+        
+            case Marble_States.Explosion:
+                timer_explosion--;
+                scale = (timer_explosion / timer_explosion_max);
+                if (timer_explosion <= 0){
+                    obj_marble_manager.remove_marble(x_index, y_index);
                 }
             break;
         }
@@ -190,7 +202,7 @@ row_explosion = function(_x, _y, _color){
     }
     
     for (var i = _y_min; i <= _y_max; i++){
-        remove_marble(_x, i)
+        marble_grid[_x, i].state = Marble_States.Explosion;
     }
 }
 
