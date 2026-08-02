@@ -24,6 +24,7 @@
   "resources":[
     {"id":{"name":"obj_marble_manager","path":"objects/obj_marble_manager/obj_marble_manager.yy",},},
     {"id":{"name":"Room1","path":"rooms/Room1/Room1.yy",},},
+    {"id":{"name":"spr_head","path":"sprites/spr_head/spr_head.yy",},},
     {"id":{"name":"spr_marbles","path":"sprites/spr_marbles/spr_marbles.yy",},},
   ],
   "resourceType":"GMProject",
