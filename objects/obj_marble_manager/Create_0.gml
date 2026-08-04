@@ -1,3 +1,4 @@
+randomize();
 
 enum Marble_Color {
     NoOne,
@@ -20,16 +21,25 @@ enum States {
 
 state = States.Play;
 
+test1 = noone;
+test2 = noone;
+
+marble_min_value = 7;
+
+turn_entity = noone;
+
 marble_grid_w = 5;
 marble_grid_h = 8;
 pool_size = marble_grid_w * marble_grid_h * 2;
 marble_pool = array_create(pool_size, Marble_Color.NoOne);
+running_simulation = false;
+points = 0;
 
 marble_w = marble_grid_w * sprite_get_width(spr_head);
 marble_h = marble_grid_h * sprite_get_height(spr_head);
 
 x_marble = room_width / 2 - marble_w / 2;
-y_marble = room_height / 2 - marble_h * 1.5;
+y_marble = room_height / 2 - marble_h * 1.5 + 16;
 
 refill_red_marbles = 0;
 refill_green_marbles = 0;
@@ -63,8 +73,132 @@ marble_grid = [
     [],
 ]
 
+marble_grid_clone = noone;
+turn_player = false;
+combo = 0;
+
+run_possibilities = function(){
+	var _possibilities = [];
+	var _qty_plays = 5 * 7;
+	var _coordinates = ds_map_create();
+	var _qty = 0;
+	
+	var _sort_pieces = function(_x, _show_message = false){
+		var _sorting_pieces = true;
+		var _y = -1;	
+		var _empty_place = -1;
+
+		for (var i = array_length(marble_grid_simulation[_x]) - 1; i >= 0; i--){
+			if (marble_grid_simulation[_x][i] == Marble_Color.NoOne && _empty_place == -1){					
+				_empty_place = i;
+				if (_y < 0){
+					_y = i;
+				}
+			}
+					
+			if (marble_grid_simulation[_x][i] != Marble_Color.NoOne && _empty_place > -1){
+				marble_grid_simulation[_x][_empty_place] = marble_grid_simulation[_x][i];
+				marble_grid_simulation[_x][i] = Marble_Color.NoOne;
+					
+				i = array_length(marble_grid_simulation[_x]) - 1;
+				_empty_place = -1;
+			}
+		}
+				
+		return _y;
+	}
+			
+	repeat(_qty_plays){
+		marble_grid_simulation = []
+		for (var i = 0; i < array_length(marble_grid); i++){
+			for (var j = 0; j < array_length(marble_grid[i]); j++){
+				marble_grid_simulation[i][j] = marble_grid[i][j].color;
+			}
+		}
+		
+		points = 0;
+		var _x, _y;
+		_x = irandom(array_length(marble_grid_simulation) - 1);
+		_y = irandom_range(marble_grid_h + 1, array_length(marble_grid_simulation[_x]) - 1);
+		while(_coordinates[? $"{_x}|{_y}"] != undefined){
+			_x = irandom(array_length(marble_grid_simulation) - 1);
+			_y = irandom_range(marble_min_value, array_length(marble_grid_simulation[_x]) - 1);
+		}
+		_coordinates[? $"{_x}|{_y}"] = true;
+
+		points++;
+		marble_grid_simulation[_x][_y] = Marble_Color.NoOne;
+		
+		var _y_explosion = _sort_pieces(_x);
+		var _explosions = true;
+		while(_explosions){
+			if (_y_explosion + 1 > array_length(marble_grid_simulation[_x]) -1){
+				_explosions = false;
+				break;	
+			}else{
+				var _og_color = marble_grid_simulation[_x][_y_explosion];
+				var _next_color = marble_grid_simulation[_x][_y_explosion + 1];
+				
+				if (_og_color == _next_color){
+				    var _y_min, _y_max;
+				    _y_min = _y;
+				    _y_max = _y;
+				    // coloca o y_min
+				    for (var i = _y; i >= marble_min_value - 1; i--){
+				        var _marble = marble_grid_simulation[_x][i - 1];
+				        if (_marble != _og_color){
+				            _y_min = i;
+				            break;
+				        }
+				    } 
+    
+				    var _found = false;
+				    for (var i = _y; i < marble_grid_h * 2; i++){
+				        var _marble = marble_grid_simulation[_x][i];
+				        if (_marble != _og_color){
+				            _y_max = i - 1;
+				            _found = true;
+				            break;
+				        }
+				    } 
+    
+				    if (!_found){
+				        _y_max = marble_grid_h * 2 - 1;
+				    }
+	
+				    for (var i = _y_min; i <= _y_max; i++){
+						marble_grid_simulation[_x][i] = Marble_Color.NoOne;
+						points++;
+				    }	
+					
+					_y_explosion = _sort_pieces(_x);
+				}else{
+					_explosions = false;
+					break;		
+				}
+			}
+		}
+		
+		var _run_results = {
+			x : _x,
+			y : _y,
+			points : points,
+		}
+		
+		array_push(_possibilities, _run_results);
+	}
+		
+	array_sort(_possibilities, function(_run1, _run2){
+		return _run2.points - _run1.points;
+	});
+		
+	ds_map_destroy(_coordinates);
+	
+	return _possibilities;
+}
+
 next_turn = function(){
-	with(obj_turn_manager){
+	with(obj_combat_manager){
 		turn++;
 		if (turn > array_length(turns) - 1){
 			turn = 0;
@@ -82,6 +216,7 @@ create_marble = function(_color, _x, _y) constructor {
     scale = 1;
     alpha = 1;
 	alpha_final = 1;
+	simulation_mode = false;
     x_index = _x;
     y_index = _y;
     state = Marble_States.Idle;
@@ -89,6 +224,7 @@ create_marble = function(_color, _x, _y) constructor {
     falling_y = -1;
     timer_explosion_max = 15;
     timer_explosion = timer_explosion_max;
+	leader = false;
 	
 	reveal_myself = function(){
 
@@ -103,11 +239,11 @@ create_marble = function(_color, _x, _y) constructor {
                 _y1 = obj_marble_manager.y_marble + y_index * sprite_size - sprite_size / 2;
                 _y2 = _y1 + sprite_size;
 				reveal_myself();
-                
+				
                 if (obj_marble_manager.state == States.Play){
-                    if (point_in_rectangle(mouse_x, mouse_y, _x1, _y1, _x2, _y2)){
+                    if (point_in_rectangle(mouse_x, mouse_y, _x1 + 4, _y1 + 4, _x2 - 4, _y2 - 4)){
                         scale = lerp(scale, 1.2, .1);
-                        if (y_index > obj_marble_manager.marble_grid_h){
+                        if (y_index >= obj_marble_manager.marble_min_value){
                             if (mouse_check_button_released(mb_left)){
                                 obj_marble_manager.remove_marble(x_index, y_index);
                                 obj_marble_manager.state = States.Falling_Pieces;
@@ -121,55 +257,59 @@ create_marble = function(_color, _x, _y) constructor {
             break;
         
             case Marble_States.Falling:
-                y += .1;
 				reveal_myself();
-                if (falling_leader){
-                    var _y_index_falling = floor(y mod sprite_size);
-                    if (falling_y != _y_index_falling){
-                        falling_y = _y_index_falling;
-                        // parei, e vou ver se a proxima posição da grid ainda é valida
-                        var _marble_grid = obj_marble_manager.marble_grid;
-                        if (falling_y + 1 < array_length(_marble_grid[x_index])){
-                            // caso tenha colidido com o head
-                            var _next_marble = _marble_grid[x_index][falling_y + 1];
-                            if (is_struct(_next_marble)){
-                                if (_next_marble.head){ 
-                                    // tenta executar uma explosao
-                                    // caso consiga explodir, ele repete todo o processo
-                                    // caso nao consiga explodir, passa o turno
-                                    if (_next_marble.color == color){
-                                        obj_marble_manager.update_row(x_index);
-                                        obj_marble_manager.explosion_settings.timer = 5;
-                                        obj_marble_manager.explosion_settings.y_max = _next_marble.y_index;
-                                        obj_marble_manager.explosion_settings.x = x_index;
-                                        obj_marble_manager.explosion_settings.color = _next_marble.color;
-                                    }else{
-                                        obj_marble_manager.update_row(x_index);
-                                        obj_marble_manager.refill_marble_grid(x_index);
-                                        obj_marble_manager.state = States.Play;
+				y += .1;
+	            if (falling_leader){
+	                var _y_index_falling = floor(y mod sprite_size);
+	                if (falling_y != _y_index_falling){
+	                    falling_y = _y_index_falling;
+	                    // parei, e vou ver se a proxima posição da grid ainda é valida
+	                    var _marble_grid = obj_marble_manager.marble_grid;
+	                    if (falling_y + 1 < array_length(_marble_grid[x_index])){
+	                        // caso tenha colidido com o head
+	                        var _next_marble = _marble_grid[x_index][falling_y + 1];
+	                        if (is_struct(_next_marble)){
+	                            if (_next_marble.head){ 
+	                                // tenta executar uma explosao
+	                                // caso consiga explodir, ele repete todo o processo
+	                                // caso nao consiga explodir, passa o turno
+	                                if (_next_marble.color == color){
+	                                    obj_marble_manager.update_row(x_index);
+	                                    obj_marble_manager.explosion_settings.timer = 5;
+	                                    obj_marble_manager.explosion_settings.y_max = _next_marble.y_index;
+	                                    obj_marble_manager.explosion_settings.x = x_index;
+	                                    obj_marble_manager.explosion_settings.color = _next_marble.color;
+	                                }else{
+	                                    obj_marble_manager.update_row(x_index);
+	                                    obj_marble_manager.refill_marble_grid(x_index);
+	                                    obj_marble_manager.state = States.Play;
 										obj_marble_manager.next_turn();
-                                    }
-                                }
-                            }
-                        }else{
-                            // caso tenha chegado no fim da grid eu só atualizo as bolinhas
-                            obj_marble_manager.update_row(x_index);
-                            obj_marble_manager.refill_marble_grid(x_index);
-                            obj_marble_manager.state = States.Play;
+										obj_marble_manager.combo = 0;
+	                                }
+	                            }
+	                        }
+	                    }else{
+	                        // caso tenha chegado no fim da grid eu só atualizo as bolinhas
+	                        obj_marble_manager.update_row(x_index);
+	                        obj_marble_manager.refill_marble_grid(x_index);
+	                        obj_marble_manager.state = States.Play;
 							obj_marble_manager.next_turn();
-                        }
-                        
-                    }
-                }
+	                    }
+	                }
+				}
             break;
         
             case Marble_States.Explosion:
-				reveal_myself();
-                timer_explosion--;
-                scale = (timer_explosion / timer_explosion_max);
-                if (timer_explosion <= 0){
-                    obj_marble_manager.remove_marble(x_index, y_index);
-                }
+				if (!simulation_mode){
+					reveal_myself();
+	                timer_explosion--;
+	                scale = (timer_explosion / timer_explosion_max);
+	                if (timer_explosion <= 0){
+	                    obj_marble_manager.remove_marble(x_index, y_index);
+	                }
+				}else{
+					obj_marble_manager.remove_marble(x_index, y_index);	
+				}
             break;
         }
     }
@@ -181,9 +321,11 @@ create_marble = function(_color, _x, _y) constructor {
         var _y2 = _y1 + sprite_size;
 
         draw_set_color(c_black);
-        draw_text(_x1, _y1 + 1, y_index);
+        draw_text(_x1, _y1 + 1, x_index);
+        draw_text(_x1 + 16, _y1 + 1, y_index);
         draw_set_color(c_fuchsia);
-        draw_text(_x1, _y1, y_index);
+        draw_text(_x1, _y1, x_index);
+        draw_text(_x1 + 16, _y1, y_index);
         draw_set_color(c_white);
     }
 }
@@ -193,11 +335,12 @@ row_explosion = function(_x, _y, _color){
     _y_min = _y;
     _y_max = _y;
     // coloca o y_min
-    for (var i = _y; i >= marble_grid_h; i--){
-        var _marble = marble_grid[_x][i];
+	var _marble_grid = obj_marble_manager.marble_grid;
+    for (var i = _y; i >= marble_min_value - 1; i--){
+        var _marble = _marble_grid[_x][i - 1];
         if (is_struct(_marble)){
             if (_marble.color != _color){
-                _y_min = i + 1;
+                _y_min = i;
                 break;
             }
         }
@@ -205,7 +348,7 @@ row_explosion = function(_x, _y, _color){
     
     var _found = false;
     for (var i = _y; i < marble_grid_h * 2; i++){
-        var _marble = marble_grid[_x][i];
+        var _marble = _marble_grid[_x][i];
         if (is_struct(_marble)){
             if (_marble.color != _color){
                 _y_max = i - 1;
@@ -218,36 +361,57 @@ row_explosion = function(_x, _y, _color){
     if (!_found){
         _y_max = marble_grid_h * 2 - 1;
     }
-    
+	
     for (var i = _y_min; i <= _y_max; i++){
-        marble_grid[_x, i].state = Marble_States.Explosion;
+		var _marble = _marble_grid[_x][i];
+		if (is_struct(_marble)){
+			_marble.state = Marble_States.Explosion;
+		}
     }
 }
 
 stop_row = function(_x){
-    for (var i = 0; i < array_length(marble_grid[_x]); i++){
-        var _marble = marble_grid[_x][i];
+	var _marble_grid = obj_marble_manager.marble_grid;
+    for (var i = 0; i < array_length(_marble_grid[_x]); i++){
+        var _marble = _marble_grid[_x][i];
         if (is_struct(_marble)){
             _marble.state = Marble_States.Idle;
         }
     }
 }
 remove_marble = function(_x, _y){
-    if (is_struct(marble_grid[_x][_y])){
-        var _marble = marble_grid[_x][_y].color;
-        marble_grid[_x][_y] = Marble_Color.NoOne;
-        
+	var _marble_grid = obj_marble_manager.marble_grid;
+    if (is_struct(_marble_grid[_x][_y])){
+        var _marble = _marble_grid[_x][_y].color;
+        _marble_grid[_x][_y] = Marble_Color.NoOne;
+				
         switch (_marble){
         	case Marble_Color.Blue: obj_marble_manager.refill_blue_marbles++; break;
         	case Marble_Color.Green: obj_marble_manager.refill_green_marbles++; break;
         	case Marble_Color.Yellow: obj_marble_manager.refill_yellow_marbles++; break;
         	case Marble_Color.Red : obj_marble_manager.refill_red_marbles++; break;
         }
+		
+		combo++;
+		
+		if (turn_player){
+			obj_combat_manager.hp_enemy_party -= 1 + combo / 10;
+			if (obj_combat_manager.hp_enemy_party <= 0){
+				show_message("Venceu!");
+				game_restart();
+			}
+		}else{
+			obj_combat_manager.hp_party -= 1 + combo / 10;	
+			if (obj_combat_manager.hp_party <= 0){
+				show_message("Perdeu!");
+				game_restart();
+			}
+		}
         
         var _leader_found = false;
         
         for (var i = _y; i >= 0; i--){ // define o lider da queda
-            var _current_marble = marble_grid[_x][i];
+            var _current_marble = _marble_grid[_x][i];
             if (is_struct(_current_marble)){ 
                 _current_marble.state = Marble_States.Falling;
                 if (!_leader_found){
@@ -257,8 +421,8 @@ remove_marble = function(_x, _y){
             }
         }
         
-        for (var i = _y; i < array_length(marble_grid[_x]); i++){ // define o head
-            var _current_marble = marble_grid[_x][i];
+        for (var i = _y; i < array_length(_marble_grid[_x]); i++){ // define o head
+            var _current_marble = _marble_grid[_x][i];
             if (is_struct(_current_marble)){ 
                 _current_marble.head = true;
                 break;
@@ -267,7 +431,8 @@ remove_marble = function(_x, _y){
     }
 }
 refill_marble_grid = function(_x){
-    repeat(refill_blue_marbles) array_push(marble_pool, Marble_Color.Blue);
+    var _marble_grid = obj_marble_manager.marble_grid;
+	repeat(refill_blue_marbles) array_push(marble_pool, Marble_Color.Blue);
     repeat(refill_green_marbles) array_push(marble_pool, Marble_Color.Green);
     repeat(refill_red_marbles) array_push(marble_pool, Marble_Color.Red);
     repeat(refill_yellow_marbles) array_push(marble_pool, Marble_Color.Yellow);
@@ -279,25 +444,38 @@ refill_marble_grid = function(_x){
     
     array_shuffle_ext(marble_pool);
     
-    for (var i = 0; i < array_length(marble_grid[_x]); i++){
-        if (!is_struct(marble_grid[_x][i])){
+    for (var i = 0; i < array_length(_marble_grid[_x]); i++){
+        if (!is_struct(_marble_grid[_x][i])){
             var _color = array_pop(marble_pool);
-            marble_grid[_x][i] = new create_marble(_color, _x, i);
+            _marble_grid[_x][i] = new create_marble(choose(
+				Marble_Color.Blue, Marble_Color.Green, Marble_Color.Red, Marble_Color.Yellow
+			), _x, i);
         }
     }
 }
 update_row = function(_x){
     var _new_row = array_create(marble_grid_h * 2, Marble_Color.NoOne);
-    
-    for (var i = 0; i < array_length(marble_grid[_x]); i++){
-        var _marble = marble_grid[_x][i];
+    var _marble_grid = obj_marble_manager.marble_grid;
+	
+    for (var i = 0; i < array_length(_marble_grid[_x]); i++){
+        var _marble = _marble_grid[_x][i];
         if (is_struct(_marble)){
             var _y_index_falling = floor(_marble.y mod sprite_get_height(spr_marbles));
-            _new_row[_y_index_falling] = new create_marble(_marble.color, _x, _y_index_falling)
+            _new_row[_y_index_falling] = new create_marble(_marble.color, _x, _y_index_falling);
+			if (running_simulation){
+				_new_row[_y_index_falling].simulation_mode = true;
+			}
         }
     }
-    
-    marble_grid[_x] = _new_row;
+   
+	for (var i = 0; i < array_length(_new_row); i++){
+		if (is_struct(_new_row[i])){
+			_new_row[i].leader = true;
+			break;
+		}
+	}
+
+    _marble_grid[_x] = _new_row;
 }
 fill_marble_grid = function(){
     for (var _i = 0; _i < array_length(marble_grid); _i++){
