@@ -1,8 +1,10 @@
 var _guiw = display_get_gui_width();
 var _guih = display_get_gui_height();
 
+
+
 var _x, _y, _w;
-_y = _guih * .8;
+_y = _guih * .05;
 _x = _guiw * .025;
 draw_sprite_ext(spr_health_bar_player, 1, _x, _y, 1, 1, 0, c_white, 1);
 _w = obj_combat_manager.hp_party / obj_combat_manager.hp_party_max * sprite_get_width(spr_health_bar_player);

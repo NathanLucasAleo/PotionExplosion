@@ -7,5 +7,6 @@ for (var i = 0; i < array_length(marble_grid); i++){
             y_marble + 32 * _marble.y, _marble.scale, _marble.scale, 0, c_white, _marble.alpha * _marble.alpha_final);
             //_marble.draw();
         }
+		
     }
 } // esse for serve para desenhar as bolinhas na tela
