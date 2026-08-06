@@ -48,7 +48,7 @@ create_party_member = function(_type, _hp, _color, _atk) constructor {
 	sprite_dmg  = asset_get_index($"spr_party_member_{type}_dmg");
 	sprite_cast = asset_get_index($"spr_party_member_{type}_cast");
 	
-	x = room_width * .15;
+	x = room_width * .2;
 	y = 0;
 	x_add = 0;
 	
@@ -58,7 +58,7 @@ create_party_member = function(_type, _hp, _color, _atk) constructor {
 	
 	update = function(){
 		if (obj_combat_manager.turn == turn || combo){
-			x_add = lerp(x_add, 32, .1);
+			x_add = lerp(x_add, 16, .1);
 		}else{
 			x_add = lerp(x_add, 0, .1);	
 		}
@@ -143,7 +143,7 @@ create_enemy_party_member = function(_type, _hp, _color, _atk) constructor {
 	sprite_cast = asset_get_index($"spr_party_member_{type}_cast");	
 	timer_play = 60;
 	
-	x = room_width * .85;
+	x = room_width * .8;
 	y = 0;
 	x_add = 0;
 	play = false;
@@ -154,7 +154,7 @@ create_enemy_party_member = function(_type, _hp, _color, _atk) constructor {
 	
 	update = function(){
 		if (state == Entities_States.Cast || combo){
-			x_add = lerp(x_add, -32, .1);
+			x_add = lerp(x_add, -16, .1);
 		}else{
 			x_add = lerp(x_add, 0, .1);	
 		}
@@ -197,6 +197,8 @@ create_enemy_party_member = function(_type, _hp, _color, _atk) constructor {
 						if (!play){
 							var _play = obj_marble_manager.run_possibilities();
 							obj_marble_manager.marble_grid[_play[0].x][_play[0].y].state = Marble_States.Explosion;
+							var _colors = [c_red, c_blue, c_green, c_yellow];
+							obj_combat_manager.deal_damage(atk, 0, _colors[color - 1]);
 							play = true;
 						}
 					}
@@ -232,13 +234,19 @@ hp_enemy_party_max = hp_enemy_party;
 #endregion
 
 // metodos
-deal_damage = function(_dmg, _combo){
+deal_damage = function(_dmg, _combo, _color){
 	var _turn_player = !turns[turn].enemy;
+	var _dmg_dealt = _dmg * (1 + _combo / 10);
 	if (_turn_player){
-		hp_enemy_party -= _dmg * (1 + _combo / 10);
+		hp_enemy_party -= _dmg_dealt;
+		create_screen_shake(3);
 	}else{
-		hp_party -= _dmg * (1 + _combo / 10);	
+		hp_party -= _dmg_dealt;
+		create_screen_shake(5);
 	}
+	
+	create_damage_indicator(_turn_player, _dmg_dealt, _color, _combo + 1);
+	
 	
 	var _party = (_turn_player) ? enemy_party : party;
 	for (var i = 0; i < array_length(_party); i++){

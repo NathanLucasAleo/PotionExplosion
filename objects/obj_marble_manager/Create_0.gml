@@ -8,6 +8,13 @@ enum Marble_Color {
     Yellow
 }
 
+magic_points = {
+	green_magic : 0,
+	red_magic : 0,
+	yellow_magic : 0,
+	blue_magic : 0,
+};
+
 enum Marble_States {
     Idle,
     Explosion,
@@ -280,7 +287,8 @@ create_marble = function(_color, _x, _y) constructor {
 	                            if (mouse_check_button_released(mb_left)){
 	                                state = Marble_States.Explosion;
 	                                obj_marble_manager.state = States.Falling_Pieces;
-									obj_combat_manager.deal_damage(obj_combat_manager.turns[obj_combat_manager.turn].atk , 0)
+									var _colors = [c_red, c_blue, c_green, c_yellow];
+									obj_combat_manager.deal_damage(obj_combat_manager.turns[obj_combat_manager.turn].atk , 0, _colors[color - 1], 1)
 	                            }
 	                        }
 	                    }else{
@@ -434,10 +442,32 @@ remove_marble = function(_x, _y){
         _marble_grid[_x][_y] = Marble_Color.NoOne;
 				
         switch (_marble){
-        	case Marble_Color.Blue: obj_marble_manager.refill_blue_marbles++; break;
-        	case Marble_Color.Green: obj_marble_manager.refill_green_marbles++; break;
-        	case Marble_Color.Yellow: obj_marble_manager.refill_yellow_marbles++; break;
-        	case Marble_Color.Red : obj_marble_manager.refill_red_marbles++; break;
+        	case Marble_Color.Blue:
+				if (turn_player){
+					obj_marble_manager.magic_points.blue_magic++;	
+				}
+				obj_marble_manager.refill_blue_marbles++;
+			break;
+        	case Marble_Color.Green: 
+				if (turn_player){
+					obj_marble_manager.magic_points.green_magic++;	
+				}
+				obj_marble_manager.refill_green_marbles++;
+			break;
+			
+        	case Marble_Color.Yellow:
+				if (turn_player){
+					obj_marble_manager.magic_points.yellow_magic++;	
+				}
+				obj_marble_manager.refill_yellow_marbles++;
+			break;
+			
+        	case Marble_Color.Red :
+				if (turn_player){
+					obj_marble_manager.magic_points.red_magic++;	
+				}
+				obj_marble_manager.refill_red_marbles++;
+			break;
         }
 		
 		combo++;

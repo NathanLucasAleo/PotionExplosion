@@ -15,10 +15,13 @@ for (var i = 0; i < array_length(marble_grid); i++){
 if (do_combos){
 	if (array_length(combo_guys) > 0){
 		if (--combo_guys[0].timer <= 0){
+			var _colors = [c_red, c_blue, c_green, c_yellow];
+			
 			combo_guys[0].character.combo = false;
 			obj_combat_manager.deal_damage(
 				combo_guys[0].character.atk,
-				combo_guys[0].combo
+				combo_guys[0].combo,
+				_colors[combo_guys[0].character.color - 1]
 			)
 			
 			array_delete(combo_guys, 0, 1);
@@ -35,10 +38,4 @@ if (explosion_settings.timer > 0){
     }
 }
 
-if (keyboard_check_released(vk_left)){
-	run_possibilities();
-}
-
-if (keyboard_check_released(vk_space)){
-    room_restart();
-}
+show_debug_message(magic_points);
